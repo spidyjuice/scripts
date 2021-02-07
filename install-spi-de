@@ -1,0 +1,66 @@
+#!/bin/sh
+#warning: this script is not yet tested whatsoever
+
+dependancies='scrot redshift picom xdotool alsa-utils clipmenu pass'
+scripts='compositor-kill compositor-start compositor-switch dmenu-clipmenu dmenu_druglog dmenu_gamerename dmenu_gameutils dmenu_mount dmenu_passty dmenu_rest dmenu_set-timezone dmenu_sys dmenu_todo launch-chat launch-game launch-web mg2 mic-tog picom-kill picom-start picom-switch print-bat2 print-net2 print-vol2 red-switch rest-display vol-dwn vol-tog vol-up'
+packagemanager='pacman --confirm'
+
+#install dependancies
+echo 'installing dependancy packages...'
+$packagmanager $dependancies
+
+mkdir tmp
+cd tmp
+echo 'installing main components from github...'
+#install main components
+git clone https://github.com/spidyjuice/spi-dwm
+git clone https://github.com/spidyjuice/spi-dmenu
+git clone https://github.com/spidyjuice/spi-dwmblocks
+git clone https://github.com/spidyjuice/spi-dy-st
+cd spi-dwm
+sudo make install
+cd ../spi-dmenu
+sudo make install
+cd ../spi-dwmblocks
+make ; sudo make install
+cd ../spi-dy-st
+sudo make install
+cd ..
+
+#download scripts
+echo 'fetching scripts...'
+mkdir scripts
+cd scripts
+
+i=1
+while [ i -lt "$(echo $scripts | wc -w)" ] ; do
+dl="$(echo "$scripts" | awk '{print $'"$i"'}'
+wget 'https://raw.githubusercontent.com/spidyjuice/scripts/master/'"$dl"
+i="$(( i + 1 ))"
+done
+
+cp * /usr/local/bin
+cd ..
+
+#make sym links
+echo 'making some symbolic links...'
+ln /usr/local/bin/compositor-kill /usr/local/bin/picom-kill
+ln /usr/local/bin/compositor-start /usr/local/bin/picom-start
+ln /usr/local/bin/compositor-switch /usr/local/bin/picom-switch
+
+echo 'play "$SFXDIR"/start.wav &
+($XCOMMAND) &
+feh --bg-fill ~/.config/wall &
+xset r rate 300 35 &
+redshift &
+xrdb ~/.Xresources ;
+dwmblocks &
+clipmenud &
+compositor-start &
+
+while true; do
+dwm
+done' > ../spi-de.xinit.example
+
+echo 'finished! spi-de is installed! You may delete tmp.'
+echo 'an example .xinit file was saved to spi-de.xinit.example'
