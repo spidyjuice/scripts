@@ -62,5 +62,20 @@ while true; do
 dwm
 done' > ../spi-de.xinit.example
 
+echo'export ROMSDIR=/home/media/roms
+export SAVESDIR=/home/storage/saves
+export SPIDYOSCONFDIR=~/.config/spidyos
+export WEBBROWSER='launch-web'
+export DOWNLOADS=${HOME}/out
+export SFX=${HOME}/.config/sfx
+export SYSSFX="$SFX"
+export SFXDIR="$SFX"
+export DATEFORMAT='1%Y-%m-%d.%H:%M:%S%z'
+export CM_OUTPUT_CLIP=1
+export EDITOR=vim
+export TERM_EMULATOR=st' > ../spi-de.profilevars.example
+
+
 echo 'finished! spi-de is installed! You may delete tmp.'
 echo 'an example .xinit file was saved to spi-de.xinit.example'
+echo 'an example of recommended environment variables was saved to spi-de.profilevars.example'
