@@ -1,0 +1,4 @@
+#!/bin/sh
+picom -o 1 -c -r 30 -l -30 -t -25 -D 0
+#--shadow-blue 0.3 --shadow-green 0.2
+#--focus-exclude "x = 0 && y = 0 && override_redirect = true"
