@@ -1,0 +1,8 @@
+#!/bin/sh
+#usage: timer [seconds]
+time="$*"
+echo "starting timer, sleeping for $time seconds"
+sleep "$time"
+while [ -z i ]
+do aplay "$SYSSFX"/win.wav
+done

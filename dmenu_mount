@@ -1,0 +1,28 @@
+#!/bin/sh
+#mpc -q --port=6601 add conf.wav
+#mpc -q --port=6601 play
+sdopt="$(lsblk | dmenu -l 50 -p 'userspace mount/umount')"
+[ -z "$sdopt" ] && aplay "$SFXDIR"/cancel.wav  && exit
+aplay "$SFXDIR"/next.wav &
+if echo "$sdopt" | grep -q 'sda'
+then vibecheck="$(
+echo 'yes
+wait what' | dmenu -p 'are you sure you wanna do that homie?')"
+[ "$vibecheck" == 'yes' ] && aplay "$SFXDIR"/admin.wav || exit
+fi
+sd="$(echo "$sdopt" | awk '{print $1}' | sed 's/^..//')"
+if echo "$sdopt" | grep -q '/'
+then
+sudo umount /dev/"$sd" ; aplay "$SFXDIR"/uconf.wav ; exit
+fi
+#point="$(ls /home/mount/ | dmenu -p 'mount to /home/media/...' && (mpc -q --port=6601 add pick.wav ; mpc -q --port=6601 play) || (mpc -q --port=6601 add cancel.wav ; mpc -q --port=6601 play) )"
+point="$(echo '/mnt
+/alt
+/roms
+/media' | dmenu -p 'mount to...')"
+[ -z "$point" ] && aplay "$SFXDIR"/cancel.wav && exit
+aplay "$SFXDIR"/pick.wav &
+[ -d "$point" ] || (sudo -A -p 'sudo: please create directory:' mkdir "$point" && sudo -A -p 'sudo: please set sudoers ownership of directory:' chown :sudoers "$point")
+sudo mount /dev/"$sd" "$point" && aplay "$SFXDIR"/conf.wav || aplay "$SFXDIR"/admin.wav
+
+

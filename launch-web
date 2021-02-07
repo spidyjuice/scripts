@@ -1,0 +1,85 @@
+#!/bin/sh
+#web browser launch wrapper originally written by spidyjuice.
+#extensible, but supports qutebrowser
+
+
+args=" $*"
+weblist='qutebrowser
+waterfox'
+
+funchelp() {
+echo 'usage:
+launch-web		launches primary browser
+launch-web [address]	launches primary browser to [address]
+launch-web -m [browser]	launches [browser] if it is an option in weblist
+launch-web -d [address]	launches dmenu-selected browser to [address]
+
+options:
+-2	launch the Secondary browser in weblist
+-d	select from weblist in Dmenu
+-m	Manually determine browser with an argument
+-l	List weblist
+-h	display this Help menu
+-c	all arguments after this flag will passthrough to the browser being launched
+
+note: please be wary that launch-web and launch-chat work a little different'
+exit
+}
+
+funclist() {
+echo "$weblist"
+exit
+}
+
+funcpassthrough() {
+passthrough="$(echo "$args" | sed 's/^.* -c / -c /g' | sed 's/ -c //g')"
+#echo "$passthrough"
+args="$(echo "$args" | sed "s/ -c $passthrough//g")"
+#echo "$args" && exit
+}
+
+funcdmenu() {
+args="$(echo "$args" | sed 's/ -d//g')"
+aplay -q "$SYSSFX"/in.wav &
+opt="$(echo "$weblist" | dmenu -c -l 30 -bw 3 -i)"
+[ -z "$opt" ] && aplay -q "$SYSSFX"/cancel.wav && exit
+aplay -q "$SYSSFX"/pick.wav
+}
+
+funcmanual() {
+#opt="$(echo "$args" | sed 's/-m .*/.*/g')"
+# v v v haha not my line, I don't know how to use awk this well...
+opt="$(echo "$args" | awk '{for(i=1;i<=NF;i++) if ($i=="-m") print $(i+1)}')"
+args="$(echo "$args" | sed "s/ -m $opt//g")"
+#echo "$args" && exit
+#echo "$opt" && exit
+}
+
+funcsecondary() {
+opt="$(echo "$weblist" | head -n 2 | tail -n 1)"
+args="$(echo "$args" | sed 's/ -2//g')"
+}
+
+#handling arguments
+if [ -n "$args" ] ; then
+	echo "$args" | grep -q -e '-c' && [ "$?" -eq '0' ] && funcpassthrough
+	echo "$args" | grep -q -e '-h' && [ "$?" -eq '0' ] && funchelp
+	echo "$args" | grep -q -e '--help' && [ "$?" -eq '0' ] && funchelp
+	echo "$args" | grep -q -e '-l' && [ "$?" -eq '0' ] && funclist
+	echo "$args" | grep -q -e '-m' && [ "$?" -eq '0' ] && funcmanual
+	echo "$args" | grep -q -e '-d' && [ "$?" -eq '0' ] && funcdmenu
+	echo "$args" | grep -q -e '-2' && [ "$?" -eq '0' ] && funcsecondary
+	[ -z "$opt" ] && opt="$(echo "$weblist" | head -n 1)"
+fi
+
+[ "$opt" == 'qutebrowser' ] && openoption='-R'
+[ "$opt" == 'waterfox' ] && openoption='' && echo 'waterfox isnt actually setup...' && aplay -q "$SYSSFX"/error.wav && exit
+
+
+aplay -q .config/sfx/do.wav &
+[ -n "$passthrough" ] && (firejail --whitelist="$DOWNLOADS" "$opt" "$passthrough" || aplay -q "$SYSSFX"/error.wav) && exit
+[ -n "$args" ] && (firejail --whitelist="$DOWNLOADS" "$opt" "$openoption" "$args" || aplay -q "$SYSSFX"/error.wav) && exit
+[ -z "$args" ] && (firejail --whitelist="$DOWNLOADS" "$opt" || aplay -q "$SYSSFX"/error.wav) && exit
+# 
+#firejail --whitelist="$DOWNLOADS" "$opt" $args || aplay "$SYSSFX"/error.wav
+# "$args"

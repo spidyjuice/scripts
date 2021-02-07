@@ -1,0 +1,27 @@
+#!/bin/sh
+opt="$( (echo "display sleep
+exit/end x
+reboot/restart
+shutdown/poweroff") | dmenu -c -bw 3 -l 10 -p 'Kill Options:' & aplay -q "$SFXDIR"/in.wav)"
+#logout/logoff
+#ram suspend
+#disk suspend
+
+[ -z "$opt" ] &&
+	aplay "$SFXDIR"/cancel.wav && exit
+aplay "$SFXDIR"/pick.wav &
+
+[ "$opt" == 'display sleep' ] &&
+	rest-display
+[ "$opt" == 'ram suspend' ] &&
+	sudo systemctl start systemd-suspend
+[ "$opt" == 'disk suspend' ] &&
+	sudo systemctl start systemd-hibernate
+[ "$opt" == 'shutdown/poweroff' ] &&
+	shutdown 0
+[ "$opt" == 'reboot/restart' ] &&
+	shutdown -r 0 
+[ "$opt" == 'exit/end x' ] &&
+	killall xinit
+[ "$opt" == 'logout/logoff' ] &&
+	killall xinit ; exit

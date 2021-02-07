@@ -1,0 +1,8 @@
+#!/bin/sh
+info="$(amixer get Master | tail -1)" 
+[ "$(echo "$info" | awk '{print $6}')" == '[off]' ] && echo 'off' && exit
+
+echo "$info" | awk '{print $5}'| sed 's/\[//g' | sed 's/\]//g'
+#echo "$info" | sed 's/^.*([0-9]+).*$/1/g'
+#echo "$info" | sed 's/(86)/\1/g'
+#echo "$info" | awk '/[0-9]+%/ {print $0}'

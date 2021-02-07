@@ -1,0 +1,16 @@
+#!/bin/sh
+mirrorsrc="$*"
+[ "$(whoami)" != 'root' ] && echo 'please run as root!' && exit
+[ -z "$DATEFORMAT" ] && DATEFORMAT='1%Y-%m-%d.%H:%M:%S%z'
+
+[ -z "$mirrorsrc" ] && mirrorsrc='https://archlinux.org/mirrorlist/?country=US&protocol=https&ip_version=4&ip_version=6&use_mirror_status=on'
+#[ -z "$mirrorsrc" ] && echo 'usage: update-mirrorlist [new list url]'
+#[ -z "$mirrorsrc" ] && mirrorsrc=''
+
+echo 'beginning...'
+mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist."$(date +"$DATEFORMAT")".bak
+wget -q -O '/etc/pacman.d/mirrorlist.1.new' "$mirrorsrc"
+sed 's/\#Server/Server/g' /etc/pacman.d/mirrorlist.1.new > /etc/pacman.d/mirrorlist.2.new
+rankmirrors /etc/pacman.d/mirrorlist.2.new > /etc/pacman.d/mirrorlist
+rm /etc/pacman.d/mirrorlist.*.new
+echo 'done!'

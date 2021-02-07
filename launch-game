@@ -1,0 +1,123 @@
+#!/bin/sh
+#spidyjuice's unified laptop video game list script!!
+#script ickies: ...
+#this script lists all avialable scummvm games, including demos..
+#this script will not correctly handle any games with the string 'utilities' in their title
+#this script handles .MX1, .rom, and .dsk files specifically with openmsx. It will need to be modified if this behavior is not desired.
+
+
+[ -z "$ROMSDIR" ] && ROMSDIR=/home/media/roms
+[ -z "$SAVESDIR" ] && SAVESDIR=/home/storage/saves
+[ -z "$SPIDYOSCONFDIR" ] && SPIDYOSCONFDIR=~/.config/spidyos
+dmenumod='-c -bw 3 -sf '#ffffff' -nf '#ffff00' -i -l 39'
+
+#check if scummvm targets have changed, and update if needed
+[ "$(ls "$ROMSDIR"/scumm)" == "$(cat "$SPIDYOSCONFDIR"/scummls.cache)" ] || (aplay "$SFXDIR"/do.wav & scummvm -p "$ROMSDIR"/scumm --recursive -a ; scummt="$(scummvm -t | awk '{print $1}' | tail -n+3)" ; echo "$scummt" > "$SPIDYOSCONFDIR"/scummtargets.cache && ls "$ROMSDIR"/scumm > "$SPIDYOSCONFDIR"/scummls.cache)
+
+scummt="$(cat "$SPIDYOSCONFDIR"/scummtargets.cache)"
+
+opt="$( ( echo '[utilities]
+[folders]'
+echo '-- [ Recent Games: ] ------------------------------------------------------------------------------------'
+cat "$SPIDYOSCONFDIR"/games_recent.cache
+echo '-- [ MSX ROMs: ] ----------------------------------------------------------------------------------------'
+ls "$ROMSDIR"/msx
+echo '-- [ NES ROMs: ] ----------------------------------------------------------------------------------------'
+ls "$ROMSDIR"/nes
+echo '-- [ SNES ROMs: ] ---------------------------------------------------------------------------------------'
+ls "$ROMSDIR"/snes
+echo '-- [ ScummVM Games: ] -----------------------------------------------------------------------------------'
+echo "$scummt"
+echo '-- [ RPGMaker Games: ] ----------------------------------------------------------------------------------'
+ls "$ROMSDIR"/rpg 
+echo '-- [ GB Games: ] ----------------------------------------------------------------------------------'
+ls "$ROMSDIR"/gb &&
+echo '-- [ GBC Games: ] ----------------------------------------------------------------------------------'
+ls "$ROMSDIR"/gbc &&
+echo '-- [ GBA Games: ] ----------------------------------------------------------------------------------'
+ls "$ROMSDIR"/gba) | dmenu $dmenumod -p 'All Games:' & aplay -q "$SFXDIR"/in.wav &)"
+
+
+
+#game type checks
+#if [ "$(printf %s "$opt" | sed -n '$=')" -eq 1 ]; then
+#echo "$opt"
+
+#SPECIAL OPTIONS ---------------------------------------------------------------------------------------------------------------------
+#folders
+#folders option currently functional but breaks a few things sometimes
+foldersfunc() {
+	aplay "$SFXDIR"/next.wav & 
+	opt="$(
+		folder="$(
+			ls "$ROMSDIR" | dmenu $dmenumod -p 'Folders:'
+			)" && 
+		(
+			aplay -q "$SFXDIR"/next.wav & 
+			[ "$folder" == 'scumm' ] && 
+			list="$scummt" || list="$ROMSDIR"'/'"$folder" && 
+			ls "$list" | dmenu $dmenumod -p 'Some Games:'
+		) && 
+		optcount="$(
+			echo "$opt" | wc -l | awk '{print $1}'
+		)" && 
+		[ "$optcount" -ne 1 ] && exit
+	)"
+}
+[ "$opt" == '[folders]' ] && foldersfunc
+
+
+#-------------------------------------------------------------
+#utilities
+[ "$opt" == '[utilities]' ] && (aplay "$SFXDIR"/next.wav & dmenu_gameutils)
+[ "$opt" == '[utilities]' ] && exit
+
+#exit if dmenu returned error
+[ -z "$opt" ] && aplay "$SFXDIR"/cancel.wav && exit
+
+
+#PRE-GAME OPERATIONS ----------------------------------------------------------------------------------------------------------------
+recentlines="$(wc -l "$SPIDYOSCONFDIR"/games_recent.cache | awk '{print $1}')"
+recent="$(grep -v "$opt" "$SPIDYOSCONFDIR"/games_recent.cache)"
+newlines="$(echo "$recent" | wc -l | awk '{print $1}')"
+[ "$newlines" -lt "$recentlines" ] || recent="$(echo "$recent" | head -n-1)"
+(echo "$opt" ; echo "$recent") > "$SPIDYOSCONFDIR"/games_recent.cache
+compositor-kill ; aplay "$SFXDIR"/pick.wav &
+#GAMES OPTIONS -----------------------------------------------------------------------------------------------------------------------
+
+#metalgear2
+[ "$opt" == 'Metal-Gear-2-Solid-Snake_MSX_EN.rom' ] && openmsxfullscreen && (openmsx -machine Panasonic_FS-A1GT -cart "$ROMSDIR"/msx/Metal-Gear-2-Solid-Snake_MSX_EN.rom -ips "$ROMSDIR"/msx/MG2_TF.IPS ; compositor-start ; echo '') && exit
+
+#openmsx
+#.MX1, .rom
+echo "$opt" | grep -i -e '.MX1' -e '.rom' && openmsxfullscreen && (openmsx -machine Panasonic_FS-A1GT -cart "$ROMSDIR"/msx/"$opt" ; compositor-start ; echo '') && exit
+
+#openmsx
+#.dsk
+echo "$opt" | grep -i '.dsk' && openmsxfullscreen && (openmsx -machine Panasonic_FS-A1GT -diska "$ROMSDIR"/msx/"$opt" ; compositor-start ; echo '') && exit
+
+#snes9x-gtk
+#/roms/snes
+ls "$ROMSDIR"/snes | grep "$opt" && [ "$?" -eq 0 ] && echo "$opt" && (snes9x-gtk -maxaspect -fullscreen "$ROMSDIR"/snes/"$opt" ; fix-rate ; compositor-start ; echo '') && exit 
+#scummvm
+#scummvm -t (list targets)
+echo "$scummt" | grep "$opt" && [ "$?" -eq 0 ] && ([ -d "$SAVESDIR"/scumm/"$opt" ] || mkdir -p "$SAVESDIR"/scumm/"$opt" ; scummvm -f --savepath="$SAVESDIR"/scumm/"$opt" "$opt" ; compositor-start ; echo '') && exit
+
+#easyrpg
+#/roms/rpg
+ls "$ROMSDIR"/rpg | grep "$opt" && [ "$?" -eq 0 ] && mkdir -p "$SAVESDIR"/rpg/"$opt" && (easyrpg-player --project-path "$ROMSDIR"/rpg/"$opt" --save-path "$SAVESDIR"/rpg/"$opt" ; compositor-start ; echo '') && exit
+
+#mgba-qt
+#gb
+ls "$ROMSDIR"/gb | grep "$opt" && [ "$?" -eq 0 ] && (mgba-qt -f -b "$ROMSDIR"/bios/gb/gb_bios.bin "$ROMSDIR"/gb/"$opt" ; compositor-start ; echo '') && exit
+#gbc
+ls "$ROMSDIR"/gbc | grep "$opt" && [ "$?" -eq 0 ] && (mgba-qt -f -b "$ROMSDIR"/bios/gbc/gbc_bios.bin "$ROMSDIR"/gbc/"$opt" ; compositor-start ; echo '') && exit
+#gba
+ls "$ROMSDIR"/gba | grep "$opt" && [ "$?" -eq 0 ] && (mgba-qt -f -b "$ROMSDIR"/bios/gba/gba_bios.bin "$ROMSDIR"/gba/"$opt" ; compositor-start ; echo '') && exit
+
+#fceux (nes emu)
+ls "$ROMSDIR"/nes | grep "$opt" && [ "$?" -eq 0 ] && (fceux -f 1 --nogui "$ROMSDIR"/nes/"$opt" ; compositor-start ; echo '') && exit
+
+#else
+#exit
+#fi

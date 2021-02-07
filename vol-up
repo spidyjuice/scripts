@@ -1,0 +1,4 @@
+#!/bin/sh
+amixer set Master 7%+ &
+aplay "$SFXDIR"/vol.wav &
+kill -35 "$(pidof dwmblocks)"

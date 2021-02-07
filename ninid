@@ -1,0 +1,27 @@
+#!/bin/sh
+version=1.0.1
+rom=$1
+[ -z "$rom" ] && echo 'Usage: ninid [ROM FILE]' && exit
+findinfo () {
+info="$(dd status=none bs=1 skip="$start" count="$stop" if="$rom" | tr '\0' '\1')"
+#echo "$info"
+title="$(echo "$info" | head -c -"$tail")"
+id="$(echo "$info" | tail -c "$tail")"
+#checksum="$(cksum "$rom" | awk {'print $1'})"
+#output="$checksum"
+[ "$format" -ge '2' ] && output="$id"
+[ "$format" -eq '1' -o "$format" -eq '3' ] && output="$( echo "$output" ; echo "$title")"
+echo "$output"
+}
+
+#roms with IDs in the gba-wii format
+echo "$rom" | grep -q '.gba' && [ "$?" -eq "0" ] && (format=3 ; start=160 ; stop=18 ; tail=7 ; findinfo) && exit
+echo "$rom" | grep -q '.nds' && [ "$?" -eq "0" ] && (format=3 ; start=0 ; stop=18 ; tail=7 ; findinfo) && exit
+
+#gbc games have titles and IDs in an old sort of format
+echo "$rom" | grep -q '.gbc' && [ "$?" -eq "0" ] && (format=3 ; start=308 ; stop=15 ; tail=5 ; findinfo) && exit
+
+#gb games have titles but not internal IDs
+echo "$rom" | grep -q '.gb' && [ "$?" -eq "0" ] && (format=1 ; start=308 ; stop=23 ; tail=0 ; findinfo) && exit
+
+echo 'unknown file extension, ninid is for use with Gameboy and DS games. NES/SNES games do not have internal IDs or titles, just use cksum [FILE] if all you need is a CRC. For Gamecube and Wii games use other tools. This script currently does not handle those.'

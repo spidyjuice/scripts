@@ -1,0 +1,23 @@
+#!/bin/sh
+
+druglist="${HOME}/notes/drugs"
+logfile="${HOME}/notes/drugs.log.$(date +1%Y-%m)"
+[ -z "$DATEFORMAT" ] && DATEFORMAT='1%Y-%m-%d.%H:%M:%S%z'
+
+funcdmenulogview() {
+aplay -q "$SYSSFX"/next.wav &
+((cat "$logfile" | tail -n 5) ; echo "$(date +"$DATEFORMAT")"' (current time)') | dmenu -c -l 6 -i -bw 3
+aplay -q "$SYSSFX"/next.wav &
+funcdmenu
+}
+
+funcdmenu() {
+newdrug="$( (cat "$druglist" ; echo 'VIEW LOG...') | dmenu -c -l 10 -i -bw 3 -p 'what did you take?')"
+[ -z "$newdrug" ] && aplay "$SYSSFX"/cancel.wav && exit
+[ "$newdrug" == 'VIEW LOG...' ] && funcdmenulogview
+}
+
+aplay -q "$SYSSFX"/in.wav &
+funcdmenu
+echo "$(date +$DATEFORMAT) $newdrug" >> "$logfile"
+aplay -q "$SYSSFX"/pick.wav

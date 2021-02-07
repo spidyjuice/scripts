@@ -1,0 +1,2 @@
+#!/bin/sh
+cat .chats.ls | dmenu -p "Chat Clients:" | /bin/sh

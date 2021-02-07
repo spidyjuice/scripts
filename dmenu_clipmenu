@@ -1,0 +1,5 @@
+#!/bin/sh
+aplay "$SFXDIR"/in.wav &
+opt="$(clipmenu)"
+[ -z "$opt" ] && aplay "$SFXDIR"/cancel.wav && exit
+aplay "$SFXDIR"/pick.wav

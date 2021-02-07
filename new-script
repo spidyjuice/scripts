@@ -1,0 +1,6 @@
+#!/bin/sh
+#title="$(echo | dmenu -p 'script title:')"
+title="$*"
+echo '#!/bin/sh' >> ~/scripts/"$title"
+vim ~/scripts/"$title"
+chmod +x ~/scripts/"$title"

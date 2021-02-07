@@ -1,0 +1,55 @@
+#!/bin/sh
+#QWIIPWP
+
+
+
+#[ "$(echo "$1" | grep '-n')" ] && 
+#newfolder="$(echo "$1" "$2" | awk '/-n/{print $1}')"
+#echo "$newfolder"
+
+
+[ "$1" == '' ] && echo 'usage: unpack (-n) [filepath] [output path]'
+[ "$1" == '--help' ] && echo 'usage: unpack (-n) [filepath] [output path]
+options:'
+#-n	make new folder to output to'
+od="$(pwd)"
+package="$1"
+packagename="$(echo "$package" | sed 's/\(.*\)\/\(.*\)\.\(.*\)$/\1\n\2\n\3/')"
+echo "$packagename"
+out="$2"
+[ "$out" == '' ] && out=~/out
+algorithm="$(file -b "$package" | tail -n 1)"
+
+#mkdir out/unpack
+#Zip
+echo "$algorithm" | grep 'Zip archive data'
+#[ "$?" -eq 0 ] && 7z -o"$out"/unpack x "$package" && exit
+[ "$?" -eq 0 ] && unzip "$package"
+
+
+#gzip
+echo "$algorithm" | grep 'gzip compressed data'
+#[ "$?" -eq 0 ] && cd "$out" && tar -zxvf "$package"
+[ "$?" -eq 0 ] && tar -zxvf "$package"
+
+#bzip
+#echo "$algorithm" | grep 'bzip'
+#[ "$?" -eq 0 ] && cd "$out" && tar -jxvf "$package"
+[ "$?" -eq 0 ] && tar -jxvf "$package"
+
+
+#rar
+#echo "$package" | grep '.rar'
+#[ "$?" -eq 0 ] && 7z -o"$out"/unpack x "$package" && exit
+
+
+#7z
+#echo "$package" | grep '.7z'
+#[ "$?" -eq 0 ] && 7z -o"$out"/unpack x "$package" && exit
+
+#else...
+[ -z "$command" ] &&
+echo 'UNPACK: failed to identify compression algorithm'
+# attempting arbitrary use of 7z...'
+#[ "$?" -eq 0 ] && 7z -o"$out"/unpack x "$package" && exit
+"$command"

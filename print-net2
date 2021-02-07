@@ -1,0 +1,27 @@
+#!/bin/sh
+log=/dev/shm/netulog
+[ -f "$log" ] || echo '0
+0
+0' > "$log"
+
+up_prev="$( cat "$log" | sed -n '1p')"
+up_curr="$(( "$(cat /sys/class/net/*/statistics/tx_bytes | paste -sd '+')" ))"
+down_prev="$( cat "$log" | sed -n '2p')"
+down_curr="$(( "$(cat /sys/class/net/*/statistics/rx_bytes | paste -sd '+')" ))"
+time_prev="$( cat "$log" | sed -n '3p')"
+time_curr="$(cat /sys/class/rtc/rtc0/since_epoch)"
+# | sed s/' '//g
+#time in seconds
+
+time_since="$(( "$time_curr-$time_prev" ))"
+up_per="$(( ("$up_curr"-"$up_prev")/"$time_since" ))"
+down_per="$(( ("$down_curr"-"$down_prev")/"$time_since" ))"
+
+[ "$up_per" -gt '1024' ] && up_print="$(( "$up_per"/1024 ))"k || up_print="$up_per"
+[ "$down_per" -gt '1024' ] && down_print="$(( "$down_per"/1024 ))"k || down_print="$down_per"
+
+echo "$up_print/$down_print"
+
+echo "$up_curr
+$down_curr
+$time_curr" > "$log"

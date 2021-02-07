@@ -1,0 +1,377 @@
+#!/bin/sh
+version='1.0.9'
+
+rootcheck=$(whoami)
+[ "$rootcheck" != 'root' ] && echo 'SPIDYSTRAP: please run as root!' && exit
+#echo 'SPIDYSTRAP: detected running as root, proceeding...'
+
+[ "$1" == '-n' ] && nobaby=1 && echo '-n option detected, config will be written in nobaby mode!'
+
+
+#PACKAGES LIST
+
+packagesbase='base linux linux-firmware networkmanager dash vim ranger grub man-db base-devel openssh rsync arch-install-scripts htop'
+packagesweb='xorg-xinit qutebrowser pulseaudio pulseaudio-alsa scrot keepassxc alsa-utils xorg-server feh xdotool'
+packagesextra='firejail w3m mpv mpd mpc ncmpcpp neofetch snes9x-gtk xterm scummvm pulseaudio-bluetooth mesa lib32-mesa pacman-contrib figlet xorg-xrandr libxinerama linux-lts picom wildmidi mgba-qt bluez bluez-utils'
+packagespackages='p7zip ntfs-3g'
+packagesbaby='xf86-video-intel'
+
+
+
+[ "$nobaby" == '1' ] && packagesbaby='' && installb43classic='0' || installb43classic='1'
+
+promptproceed() {
+echo 'SPIDYSTRAP: is it ok to proceed?'
+read -p 'SPIDYSTRAP:(y/n):' promptopt
+[ "$promptopt" != 'y' ] && [ "$promptopt" != 'n' ] && promptproceed
+}
+
+#SECTION 1 this section deals with the configuration file
+if [ ! -f ./spidystrap.conf ] ;
+then installtypeprompt() {
+echo 'SPIDYSTRAP: select which type of install you want...
+a... full install!
+b... minimal, and selective!
+c... minimal, but with hacking tools!'
+read -p 'SPIDYSTRAP:(a/b/c):' promptopt
+[ "$promptopt" != 'a' ] && [ "$promptopt" != 'b' ] && [ "$promptopt" != 'c' ] && installtypeprompt
+}
+installtypeprompt
+if [ "$promptopt" == 'a' ] ;
+then echo 'full install'
+#FULL INSTALL
+installpackages="$packagesbase $packagesweb $packagespackages $packagesextra $packagesbaby"
+installnkit=1
+copypacmancache=1
+copyhomestorage=1
+copyhomemedia=1
+copyhomebin=1
+copyhomefolder=1
+hostname="$HOSTNAME"
+elif [ "$promptopt" == 'b' ] ;
+then echo 'minimal install'
+#MINIMAL INSTALL
+installpackages="$packagesbase $packagesweb $packagesbaby"
+installnkit=0
+copypacmancache=0
+copyhomestorage=0
+copyhomemedia=0
+copyhomebin=0
+copyhomefolder=1
+hostname='babusb'
+elif [ "$promptopt" == 'c' ] ;
+then echo 'hack install'
+#HACK INSTALL
+installpackages="$packagesbase $packagesweb $packagespackages $packagesbaby"
+installnkit=1
+copypacmancache=0
+copyhomestorage=0
+copyhomemedia=0
+copyhomebin=0
+copyhomefolder=1
+hostname='babusb'
+fi
+echo "#!/bin/sh
+#Welcome to spidystrap.conf. This file was generated on $(date) for version $version with default settings. Spidystrap is a script which automates the installation of arch linux using pacstrap, and implements spidyjuice's system preferences, designed for one person, on a new volume. Please take care to review and edit the variables under #VOLUME VARS and keep in mind that you are running a very violent script as root... though I've taken care to implement safety checks for the user's sake.
+#variable defaults are configured for a very basic and quick installation, but all of the configuration ones are turned on since they don't take long.
+
+#read this file then close the script
+quit=0
+#delete spidystrap.conf after reaching the end of the script
+cleanupconf=1
+
+#system storage copy options- turn all of these on for a full installation!
+#---------------------------------------------------------------------------------------------------
+copypacmancache=$copypacmancache
+copyhomestorage=$copyhomestorage
+copyhomemedia=$copyhomemedia
+copyhomebin=$copyhomebin
+#copyhomefolder options: 0=no, 1=yes, 2=selectively copy minimal files (FEATURE NOT IMPLEMENTED)
+homefoldername='madeline'
+copyhomefolder=$copyhomefolder
+
+#package installation- comment/uncomment any of these lines you'd like installed, and add any extras you want
+#--------------------------------------------------------------------------------------------------
+#base web access
+installpackages='$installpackages'
+installnkit='$installnkit'
+#nkit note: currently this script does not copy or install nkit recovery libraries or checksum lists
+installb43classic='$installb43classic'
+
+
+#note: this script is currently set up to be able to handle packages as folders, not tarballs. Please uncompress the packages you're installing.
+aurdir='/home/storage/packages'
+b43dir='/home/storage/packages/b43-firmware-classic-5.100.138-1-any.pkg.tar.zst'
+
+#name config
+#--------------------------------------------------------------------------------------------------
+hostname='$hostname'
+sudogroup='sudoers'
+user='madeline'
+
+
+#system configuration options- these don't take very long to perform, so they're all on by default
+#--------------------------------------------------------------------------------------------------
+swapfilebs='1M'
+swapfilecount='512'
+#mirrorfetch not implemented
+#pacmanmirrorfetch='https://www.archlinux.org/mirrorlist/?country=US&protocol=https&ip_version=4'
+#pacstrap automatically copies the mirrorlist
+#pacmanmirrorlist=2
+#options: 0=no, 1=yes, 2=copy from current system 
+#future feature: option 2 also replaces hostname)
+
+langgen='en_US.UTF-8 UTF-8'
+lang='en_US.UTF-8'
+
+#etc options: 0=no config, 1=custom config, 2=copy config from host
+
+hosts=2
+#custom mode: echoes >> to /etc/hosts, after the default hosts file is created
+customhosts='#custom hosts
+192.168.0.x		hostnameexample'
+
+sudoers=2
+#copy mode: copy and replaces /etc/sudoers, and copies /etc/sudoers.d
+#custom mode: echoes >> to /etc/sudoers.d/spidyos
+customsudoers='Defaults rootpw
+%"'"$sudogroup"'" ALL=(ALL) ALL
+%"'"$sudogroup"'" ALL=(ALL) NOPASSWD: /usr/bin/systemctl start systemd-suspend
+%"'"$sudogroup"'" ALL=(ALL) NOPASSWD: /usr/bin/systemctl start systemd-hibernate
+%"'"$sudogroup"'" ALL=(ALL) NOPASSWD: /usr/bin/mount
+%"'"$sudogroup"'" ALL=(ALL) NOPASSWD: /usr/bin/umount'
+
+mpd=2
+#copy mode: copy and replaces /etc/mpd.conf
+#custom mode: rm default, and echoes >> to /etc/mpd.conf
+custommpd='# See: /usr/share/doc/mpd/mpdconf.example
+#spidyos wuz here
+
+pid_file "'"/run/mpd/mpd.pid"'"
+db_file "'"/var/lib/mpd/mpd.db"'"
+state_file "'"/var/lib/mpd/mpdstate"'"
+
+music_directory "'"/etc/mpd/library"'"
+playlist_directory "'"/etc/mpd/playlists"'"'
+#mpd library softlinks are currently unconfigurable and coded into the script
+
+
+logind=2
+#copy mode: copy and replaces /etc/systemd/logind.conf
+#custom mode: echoes >> to /etc/systemd/logind.conf
+customlogind='[Login]
+HandlePowerKey=suspend
+HandleSuspendKey=suspend
+HandleHibernateKey=suspend
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+HandleLidSwitchDocked=ignore
+LidSwitchIgnoreInhibited=yes'
+
+modprobe=2
+#copy mode: copy /etc/modprobe.d/
+#custom mode: echo >> /etc/modprobe.d/spidyos.conf
+custommodprobe='blacklist pcspkr'
+
+#when the script proceeds it will ask you to resolve the mountpoint
+#also, you will be asked to input passwords at the end of the script" >> ./spidystrap.conf && chmod +rwx ./spidystrap.conf && echo 'SPIDYSTRAP: created spidystrap.conf in your working directory with a preset of your requested settings, you may review and sudo edit it before continuing.' 
+else echo 'SPIDYSTRAP: detected spidystrap.conf, proceeding!'
+fi
+promptproceed
+[ "$promptopt" == 'n' ] && echo "SPIDYSTRAP: ok, exiting script, come back when you're done editing!" && exit
+. ./spidystrap.conf
+if [ $? -eq 0 ];
+then  echo 'SPIDYSTRAP: read conf successfully'
+else echo 'SPIDYSTRAP: failed to run conf. did you write something weird in there? edit it or delete it and run this script again to autogenerate it with default settings.' && exit
+fi
+[ "$quit" -eq "1" ] && echo 'SPIDYSTRAP: quit=1, exiting script.' && exit
+
+#SECTION 2 this section defines the volume that will be written to
+#...
+promptmnt() {
+lsblk
+echo 'SPIDYSTRAP: please enter the full path of the mountpoint you wish to install to. Use ctrl-c to exit this script if you need to mount it.'
+read -p 'SPIDYSTRAP: (enter mountpoint):' mnt
+vol="$(findmnt /mnt | tail -n 1 | awk '{print $2}')"
+dev="$(echo "$vol" | sed s/.$//)"
+echo "SPIDYSTRAP: $mnt is mountpoint"
+echo "SPIDYSTRAP: $vol is volume"
+echo "SPIDYSTRAP: $dev is device"
+read -p 'SPIDYSTRAP: is this correct? (y/n):' promptopt
+[ "$promptopt" != 'y' ] && read -p 'please specify the volume' vol && read -p 'please specify the device' dev && echo "SPIDYSTRAP: $mnt is mountpoint" && echo "SPIDYSTRAP: $vol is volume" && echo "SPIDYSTRAP: $dev is device"
+promptproceed
+[ "$promptopt" == 'n' ] && promptmnt
+}
+promptmnt
+
+#SECTION 3 install process begins here
+echo 'SPIDYSTRAP: beginning pacstrap!!'
+pacman-key --populate
+pacman -Syu --noconfirm
+pacstrap -c "$mnt" $installpackages || exit
+
+#makepkg
+
+mkdir "$mnt"/aur
+#[ "$installb43classic" -eq 1 ] && cp -R "$aurdir"/b43-firmware-classic "$mnt"/aur && echo 'cd /aur/b43-firmware-classic
+#sudo -u nobody makepkg -si --noconfirm' >> "$mnt"/aur/installpkgs
+#[ "$installnkit" -eq 1 ] && cp -R "$aurdir"/nkit "$mnt"/aur && echo 'cd /aur/nkit
+#sudo -u nobody makepkg -si --noconfirm' >> "$mnt"/aur/installpkgs
+#chmod +x "$mnt"/aur/installpkgs
+#arch-chroot "$mnt" chown -R nobody /aur
+#arch-chroot "$mnt" /aur/installpkgs
+[ "$installb43classic" -eq 1 ] && cp "$b43dir" "$mnt"/aur && arch-chroot "$mnt" pacman -U /aur/b43-firmware-classic-5.100.138-1-any.pkg.tar.zst
+rm -R "$mnt"/aur
+
+arch-chroot "$mnt" systemctl enable mpd
+arch-chroot "$mnt" systemctl enable NetworkManager
+
+#SECTION 4.1 system configuration, making swapfile happens here
+echo 'SPIDYSTRAP: making swapfile...'
+dd if=/dev/zero of="$mnt"/swapfile bs="$swapfilebs" count="$swapfilecount" status=progress
+chmod 600 "$mnt"/swapfile
+mkswap "$mnt"/swapfile
+swapon "$mnt"/swapfile
+genfstab -U /mnt > "$mnt"/etc/fstab
+swapoff "$mnt"/swapfile
+
+#configure the swapfile for systemd hibernation
+swapdev=$(findmnt -no UUID -T /swapfile)
+swapfrag=$(filefrag -v /swapfile | awk '{ if($1=="0:"){print $4} }')
+echo "resume=$swapdev
+resume_offset=$swapfrag" >> "$mnt"/usr/lib/sysctl.d/babyhibernate.conf
+
+#SECTION 4.2
+echo 'SPIDYSTRAP:starting etc config'
+#etc configs happen here
+#keyboard layout (not necessary if default)... echo KEYMAP=*layout* >> /etc/vconsole.conf
+#hostname config		vars=hostname
+echo "$hostname" > "$mnt"/etc/hostname
+#hosts config (defualt/custom)	vars=hosts, customhosts, hostname
+[ "$hosts" -ne 2 ] && echo "127.0.0.1		localhost
+::1			localhost
+127.0.1.1		$hostname.localdomain	$hostname" > "$mnt"/etc/hosts && [ "$hosts" -eq 1 ] && echo "$customhosts" >> "$mnt"/etc/hosts
+[ "$hosts" -eq 2 ] && cp /etc/hosts "$mnt"/etc
+#sudoers config			vars=sudoers, customsudoers, user, sudogroup
+[ "$sudoers" -eq 1 ] && echo "$customsudoers" > "$mnt"/etc/sudoers.d/spidyos
+[ "$sudoers" -eq 2 ] && rm "$mnt"/etc/sudoers && cp /etc/sudoers "$mnt"/etc && cp -R /etc/sudoers.d "$mnt"/etc
+#mpd config			vars=mpd, custommpd
+if [ "$mpd" -eq 1 ] ;
+then [ -f "$mnt"/etc/mpd.conf.bak ] || cp "$mnt"/etc/mpd.conf "$mnt"/etc/mpd.conf.bak
+echo "$custommpd" > "$mnt"/etc/mpd.conf
+fi
+[ "$mpd" -eq 2 ] && rm "$mnt"/etc/mpd.conf && cp /etc/mpd.conf "$mnt"/etc
+#logind config			vars=logind, customlogind
+if [ "$logind" -eq 1 ] ;
+then [ -f "$mnt"/etc/systemd.logind.conf.bak ] || cp "$mnt"/etc/systemd/logind.conf "$mnt"/etc/systemd/logind.conf.bak
+echo "$customlogind" > "$mnt"/etc/systemd/logind.conf
+fi
+[ "$logind" -eq 2 ] && rm "$mnt"/etc/systemd/logind.conf && cp /etc/systemd/logind.conf "$mnt"/etc/systemd/
+#modprobe config
+[ "$modprobe" -eq 1 ] && cp -R /etc/modprobe.d "$mnt"/etc/
+[ "$modprobe" -eq 2 ] && echo "$custommodprobe" > "$mnt"/etc/modprobe.d/spidyos.conf
+#SECTION 4.3
+echo 'SPIDYSTRAP:starting userspace config'
+#userspace config happens here, through arch-chroot executing a script that is echoed out at the new root.
+#groupadd sudoers		vars=sudogroup
+arch-chroot "$mnt" groupadd "$sudogroup"
+#useradd			vars=user
+arch-chroot "$mnt" useradd -m -G "$sudogroup" -s /bin/bash "$user"
+#mkdirs				vars=, copyhomestorage, copyhomemedia, copyhomebin, copyhomefolder, homefoldername
+#MESSAGE TO FUTURE ME WHENEVER THIS FOLDER STRUCTURE NEXT CHANGES: I'M SO SORRY
+mkdir -p "$mnt"/home/storage/gallery/art_fan & mkdir -p "$mnt"/home/storage/gallery/art_friends & mkdir -p "$mnt"/home/storage/gallery/art_me & mkdir -p "$mnt"/home/storage/gallery/cool_eyes & mkdir -p "$mnt"/home/storage/gallery/heart_girls & mkdir -p "$mnt"/home/storage/gallery/iconic_tiles & mkdir -p "$mnt"/home/storage/gallery/pomf_pfp & mkdir -p "$mnt"/home/storage/gallery/snaps_roll & mkdir -p "$mnt"/home/storage/gallery/templates
+[ "$copyhomestorage" -eq 1 ] && echo 'SPIDYSTRAP: copying home storage, this may take a while...' && cp -R /home/storage "$mnt"/home
+[ "$copyhomemedia" -eq 1 ] && echo 'SPIDYSTRAP: copying home media, this may take a while...' && cp -R /home/media "$mnt"/home || mkdir -p "$mnt"/home/media
+[ "$copyhomebin" -eq 1 ] && echo 'SPIDYSTRAP: copying home bin' && cp -R /home/bin "$mnt"/home || mkdir -p "$mnt"/home/bin
+[ "$copyhomefolder" -eq 1 ] && echo 'SPIDYSTRAP: copying home folder' && cp -R /home/"$homefoldername" "$mnt"/home
+mkdir -p "$mnt"/mnt & mkdir -p "$mnt"/mntn & mkdir -p "$mnt"/media & mkdir -p "$mnt"/roms
+#chown -R 			vars=user
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /home/storage
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /home/media
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /home/bin
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /home/mount
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /mnt
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /mntn
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /roms
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /media
+arch-chroot "$mnt" chown -R "$user":"$sudogroup" /home/"$user"
+#mpd etc library softlinks	vars=custommpdlibraries jjjustkiddingg
+mkdir -p "$mnt"/etc/mpd/library
+mkdir -p "$mnt"/etc/mpd/playlists
+[ -h "$mnt"/etc/mpd/library/localmusic ] || ln -s "$mnt"/home/media/music "$mnt"/etc/mpd/library/localmusic
+[ -h "$mnt"/etc/mpd/library/extmusic ] || ln -s "$mnt"/media/music "$mnt"/etc/mpd/library/extmusic
+[ -h "$mnt"/etc/mpd/library/localplaylists ] || ln -s "$mnt"/home/media/playlists "$mnt"/etc/mpd/library/localplaylists
+[ -h "$mnt"/etc/mpd/library/extplaylists ] || ln -s "$mnt"/media/playlists "$mnt"/etc/mpd/library/extplaylists
+#grub installation happens here (needs to be able to resolve the device location being installed to!!(gotchya covered) -future me
+arch-chroot "$mnt" grub-install --target=i386-pc "$dev"
+arch-chroot "$mnt" grub-mkconfig -o /boot/grub/grub.cfg
+
+#copy pacman cache		vars=copypacmancache
+[ "$copypacmancache" -eq 1 ] && echo 'SPIDYSTRAP: copying pacman cache, this may take a while...' && cp -R /var/cache/pacman/pkg "$mnt"/var/cache/pacman
+
+#SECTION 5 final user input
+#link timezone, setup locale (this is the last phase because it  requires user input
+echo 'SPIDYSTRAP: final phase! User input required'
+[ -f "$mnt"/etc/locale.gen.bak ] || cp "$mnt"/etc/locale.gen "$mnt"/etc/locale.gen.bak
+echo "$langgen" > "$mnt"/etc/locale.gen
+arch-chroot "$mnt" locale-gen
+echo "LANG=$lang" >> "$mnt"/etc/locale.conf
+
+#timezone finder function
+zone="$mnt"'/usr/share/zoneinfo'
+folderbrowse() {
+echo "$zone"'...'
+ls "$zone"
+read -p 'SPIDYSTRAP: please select a timezone: ' promptopt
+[ -d "$zone"'/'"$promptopt" ] && zone="$zone"'/'"$promptopt"
+[ -f "$zone"'/'"$promptopt" ] && zone="$zone"'/'"$promptopt" || folderbrowse
+echo "$zone"' is timezone.'
+promptproceed
+[ "$promptopt" == 'n' ] && folderbrowse
+}
+folderbrowse
+ln -sf "$zone" "$mnt"/etc/localtime
+arch-chroot "$mnt" hwclock --systohc
+
+#ask for passwords
+#sorry I know this could be cleaner but I wanna get this done tonight
+passchangeroot() {
+echo 'SPIDYSTRAP: please input the password of the new root!'
+arch-chroot "$mnt" passwd
+[ "$?" -eq 10 ] && passchangeroot
+}
+passchangeuser() {
+echo 'SPIDYSTRAP: please input the password of your new user!'
+arch-chroot "$mnt" passwd "$user"
+[ "$?" -eq 10 ] && passchangeuser
+}
+passchangeroot
+passchangeuser
+
+echo 'SPIDYSTRAP: process complete!!!'
+#SECTION 6 exit process happens here
+[ "$cleanupconf" -eq "1" ] && rm ./spidystrap.conf && echo 'SPIDYSTRAP: deleted spidystrap.conf'
+#install process is complete
+echo 'SPIDYSTRAP: this is where the program will theoretically end'
+echo "$quit"
+echo "$cleanupconf"
+
+#feature todo's...
+##version 1
+#basically functions!!!
+#fully functional config system
+#3 preconfigurations
+##beyond version 1
+#ssh keys
+#more elegant handling of aur packages
+#scripting for handling building of certain source code!
+#aiding in disk formatting
+#option to swap super and alt keys
+#custom homedirs
+#install nkit libraries
+#more elegant handling of language config
+#more elegant handling of aur packages...
+#copy udev modules list
+#copy /opt
+#implement nkit installer
+#prompt to edit config file, try to launch $EDITOR, then launch vim if fail

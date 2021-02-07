@@ -1,3 +1,7 @@
 #!/bin/sh
-cp "$*" "$*.$(date +"$DATEFORMAT").bak"
+args="$*"
+ext='.bak'
+#if option -n is used, do not append .bak on the new file
+echo "$args" | grep -qe '-n ' && ext='' && args="$(echo "$args" | sed 's/-n //g')"
+cp "$args" "$args.$(date +"$DATEFORMAT")$ext"
 #asdfk

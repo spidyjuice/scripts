@@ -1,0 +1,104 @@
+#!/bin/sh
+version=1.1
+#a tool for renaming game roms, and their save data!
+#I wrote this for my own use, so it requires conformity to the directory tree standards of [ROMS DIR]/[CATEGORY DIR (like nes,gba,etc)]/[ROM/GAME]
+#ONLY SUPPORT FOR GAMEBOY, SNES, NDS, AND FOLDER GAMES.
+
+[ -z "$ROMSDIR" ] && ROMSDIR=/home/media/roms
+ [ -z "$SAVESDIR" ] && SAVESDIR=/home/storage/saves
+helptxt='usage: dmenu_gamerename [ROMS DIRECTORY] [SAVES DIRECTORY]'
+nin=0
+dmenumod="-c -bw 3"
+
+
+[ "$1" == '--help' ] && echo "$helptxt" && exit
+[ -z "$2" ] && [ -n "$1" ] && echo "$helptxt" && exit
+
+[ -n "$1" ] && ROMSDIR="$1"
+[ -n "$2" ] && SAVESDIR="$2"
+
+
+#select rom
+diropt="$((aplay "$SFXDIR"/in.wav) & ls "$ROMSDIR" | dmenu $dmenumod -i -l 25 -p 'select directory')"
+[ -z "$diropt" ] && aplay "$SFXDIR"/cancel.wav && exit 
+aplay "$SFXDIR"/next.wav &
+romopt="$((ls "$ROMSDIR"'/'"$diropt") | dmenu $dmenumod -i -l 25 -p 'select game')"
+[ -z "$romopt" ] && aplay "$SFXDIR"/cancel.wav && exit
+aplay "$SFXDIR"/next.wav &
+
+
+
+
+#determine file extensions
+
+#rpgmaker and scumm
+echo "$diropt" | grep -qi -e 'rpg' -e 'scumm'
+[ "$?" -eq 0 ] && romext='' && savext=''
+
+
+#nes/fds
+echo "$romopt" | grep -qi '.nes'
+[ "$?" -eq 0 ] && romext='.nes'
+
+echo "$romopt" | grep -qi '.fds'
+[ "$?" -eq 0 ] && romext='.fds'
+
+
+#snes
+echo "$diropt" | grep -qi 'snes'
+[ "$?" -eq 0 ] && savext='.srm'
+
+echo "$romopt" | grep -qi '.smc'
+[ "$?" -eq 0 ] && romext='.smc'
+
+echo "$romopt" | grep -qi '.sfc'
+[ "$?" -eq 0 ] && romext='.sfc'
+
+
+#gb
+echo "$diropt" | grep -qi 'gb'
+[ "$?" -eq 0 ] && [ -z "$SAVESDIROPT" ] && SAVESDIRopt='gbx' && savext='.sav' 
+echo "$romopt" | grep -qi '.gb'
+[ "$?" -eq 0 ] && romext='.gb' && nin=1
+
+echo "$romopt" | grep -qi '.gbc'
+[ "$?" -eq 0 ] && romext='.gbc' && nin=1
+
+echo "$romopt" | grep -qi '.gba'
+[ "$?" -eq 0 ] && romext='.gba' && nin=1
+
+
+#nds
+echo "$romopt" | grep -qi '.nds'
+[ "$?" -eq 0 ] && romext='.nds' && savext='.sav' && nin=1
+
+
+[-z "$SAVESDIROPT" ] && SAVESDIRopt="$diropt"
+
+
+#resolve name
+romdir="$ROMSDIR"'/'"$diropt"'/'"$romopt"
+title="$(echo "$romopt" | sed s/"$romext"//g || echo "$romopt")"
+checksum="$(cksum "$ROMSDIR"'/'"$diropt"'/'"$romopt" | awk {'print $1'})"
+[ "$nin" -eq '1' ] && ninido="$(ninid "$romdir")"
+nid="$(echo "$ninido" | sed -n '1p')"
+[ -n "$nid" ] && nid="$(echo "$nid ")"
+ntit="$(echo "$ninido" | sed -n '2p')"
+[ -n "$ntit" ] && ntit="$(echo "$ntit ")"
+
+sugnew="$(echo "$ntit($nid$checksum)" ; echo "$title ($nid$checksum)")"
+
+#prompt name
+rename="$((echo '-- [ suggestions: ] ---------------------------------------------------------'
+echo "$sugnew"; echo '-- [ previous name: ] -------------------------------------------------------'
+echo "$title"
+echo '-- [ nintendo id, title, and checksum: ] ------------------------------------' ; echo "$nid" ; echo "$ntit" ; echo "$checksum") | dmenu $dmenumod -l 39 -p 'new name:')"
+[ -z "$rename" ] && aplay "$SFXDIR"/cancel.wav && exit
+aplay "$SFXDIR"/pick.wav &
+
+#rename
+mv "$ROMSDIR"'/'"$diropt"'/'"$romopt" "$ROMSDIR"'/'"$diropt"'/'"$rename""$romext"
+mv "$SAVESDIR"'/'"$SAVESDIRopt"'/'"$title""$savext" "$SAVESDIR"'/'"$SAVESDIRopt"'/'"$rename""$savext"
+
+#echo "$rename""$romext"
+#echo "$rename""$savext"

@@ -1,0 +1,13 @@
+#!/bin/sh
+ogfolder=/usr/share/zoneinfo/
+folder=/usr/share/zoneinfo/
+foldsel() {
+opt=$(ls "$folder" | dmenu -i -l 30 -p 'set timezone:')
+test "$folder""$opt" = "$folder" && echo 'exit' && exit
+[ -d "$folder""$opt" ] && folder="$folder""$opt"\/ && foldsel || echo "$folder""$opt"
+}
+newtime=$(foldsel)
+test "$newtime" = "exit" && exit
+#echo "$newtime"
+sudo ln -sf "$newtime" /etc/localtime
+sudo hwclock --systohc

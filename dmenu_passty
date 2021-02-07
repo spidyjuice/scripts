@@ -1,0 +1,30 @@
+#!/bin/sh
+#it's like passmenu but with sfx and it only has a type mode
+#dpendancies: pass, xdotool
+passdir="${HOME}/.password-store"
+passlist="$(ls "$passdir" | sed 's/\.gpg//g')"
+autogenlenght=32
+[ -z "$TERM_EMULATOR" ] && TERM_EMULATOR=st
+
+
+funcnewpass() {
+aplay -q "$SYSSFX"/next.wav &
+opt="$( (echo 'auto-generate' ; echo 'manual') | dmenu -p 'new password?')"
+[ -z "$opt" ] && aplay -q "$SYSSFX"/cancel.wav && exit
+newname="$(echo "$passlist" | dmenu -p 'enter new pass name:')"
+
+#long line... checks if new pass already exists, and backs up. Then prepare a message in the new window announcing the backup.
+echo "$passlist" | grep "$newname" && cp "$passdir"/"$newname".gpg "$passdir"/"$newname"."$(date +"$DATEFORMAT")".bak.gpg && echo 'selected password backup complete, proceed...' | dmenu 
+[ -z "$newname" ] && aplay -q "$SYSSFX"/cancel.wav && exit
+[ "$opt" == 'auto-generate' ] && "$TERM_EMULATOR" -n float -g=80x5+200+50 -e pass generate "$newname" "$autogenlength" && aplay -q "$SYSSFX"/pick.wav && exit
+aplay -q "$SYSSFX"/prompt.wav &
+#when adding new code in the future relating to "$newpasscmd", beware of when and why "$newname" may accidentally expand while editing these variables.
+"$TERM_EMULATOR" -n float -g=80x5+200+50 -e pass insert "$newname" && aplay -q "$SYSSFX"/pick.wav || aplay -q "$SYSSFX"/cancel.wav
+exit
+}
+
+aplay -q "$SYSSFX"/in.wav &
+opt="$( (echo '[NEW PASS]...' ; echo "$passlist") | dmenu -l 15)"
+[ -z "$opt" ] && aplay -q "$SYSSFX"/cancel.wav && exit
+[ "$opt" == '[NEW PASS]...' ] && funcnewpass
+(pass show "$opt" & aplay -q "$SYSSFX"/warning.wav) | xdotool type --clearmodifiers --file - && aplay -q "$SYSSFX"/pass.wav

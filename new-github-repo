@@ -1,0 +1,5 @@
+#!/bin/sh
+name="$*"
+[ -z "$name" ] && echo 'USAGE: new-github-repo [name]' && exit
+curl -u spidyjuice https://api.github.com/user/repos -d '{"name":"'"$name"'","private":false}'
+

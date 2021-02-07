@@ -1,0 +1,4 @@
+#!/bin/sh
+status="$(amixer set Capture toggle)"
+echo "$status" | grep 'off' ; [ "$?" -eq 0 ] && aplay "$SFXDIR"/off.wav || aplay "$SFXDIR"/on.wav
+#kill -35 "$(pidof dwmblocks)"

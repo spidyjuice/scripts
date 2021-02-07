@@ -1,0 +1,5 @@
+#!/bin/sh
+echo > ~/.openMSX/share/settings.tmp
+head -n-3 ~/.openMSX/share/settings.xml >> ~/.openMSX/share/settings.tmp
+cat ~/.openMSX/share/.settingsfullscreen >> ~/.openMSX/share/settings.tmp
+cp ~/.openMSX/share/settings.tmp ~/.openMSX/share/settings.xml

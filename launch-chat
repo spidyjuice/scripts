@@ -1,0 +1,56 @@
+#!/bin/sh
+args="$*"
+chatlist='element
+telegram
+discord
+hexchat'
+
+funchelp() {
+echo 'usages:
+launch-chat 		brings up dmenu
+launch-chat element 	launches chat client element, or substitute 'element' for any valid option
+
+options:
+-l	List options
+-a	Automatically launch the first item in the chatlist
+-h	display this Help menu'
+exit
+}
+#-m	Manually determine chat client with an argument
+
+funclist() {
+echo "$chatlist"
+exit
+}
+
+funcdmenu() {
+aplay -q "$SYSSFX"/in.wav &
+opt="$(echo "$chatlist" | dmenu -c -l 30 -bw 3 -i)"
+[ -z "$opt" ] && aplay -q "$SYSSFX"/cancel.wav && exit
+aplay -q "$SYSSFX"/pick.wav &
+}
+
+#oops I just made an obsolete function
+#funcmanual() {
+#opt="$(echo "$args" | awk '{for(i=1;i<=NF;i++) if ($i=="-m") print $(i+1)}')"
+#args="$(echo "$args" | sed "s/ -m $opt//g")"
+#}
+
+if [ -n "$args" ] ; then
+	opt="$args"
+
+	echo "$args" | grep -q -e '-h' && [ "$?" -eq '0' ] && funchelp
+	echo "$args" | grep -q -e '--help' && [ "$?" -eq '0' ] && funchelp
+	echo "$args" | grep -q -e '-l' && [ "$?" -eq '0' ] && funclist
+	echo "$args" | grep -q -e '-a' && [ "$?" -eq '0' ] && opt="$(echo "$chatlist" | head -n 1)"
+fi
+
+[ -z "$args" ] && funcdmenu
+
+[ "$opt" == 'element' ] && command='element-desktop'
+[ "$opt" == 'discord' ] && command='firejail discord'
+[ "$opt" == 'hexchat' ] && command='hexchat'
+[ "$opt" == 'telegram' ] && command='telegram-desktop'
+
+aplay -q "$SYSSFX"/do.wav &
+$command || aplay -q "$SYSSFX"/error.wav

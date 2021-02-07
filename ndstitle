@@ -1,0 +1,17 @@
+#!/bin/sh
+rom=$1
+[ -z "$rom" ] && echo 'Usage: ndstitle [rom location]' && exit
+info="$(dd status=none bs=1 skip=0 count=18 if="$rom")"
+#echo "$info"
+title="$(echo "$info" | head -c -7)"
+id="$(echo "$info" | tail -c 7)"
+checksum="$(cksum "$rom" | awk {'print $1'})"
+echo "$title" "$id" "$checksum"
+
+
+
+##old method, didn't work consistently, varying title length?
+#title="$(dd status=none bs=1 skip=160 count=10 if="$rom")"
+#id="$(dd status=none bs=1 skip=170 count=8 if="$rom")"
+#echo "$title" "$id"
+

@@ -1,0 +1,17 @@
+#!/bin/sh
+opt="$(echo 'rename a game
+reset scumm list
+reset recent games list
+OpenMSX Panasonic FS-A1GT
+OpenMSX C-Bios
+OpenMSX Metal Gear 2 script
+EasyRPG Menu
+ScummVM Menu' | dmenu -c -bw 3 -i -l 39 -p 'Game Utilities:' || aplay "$SFXDIR"/cancel.wav)"
+test "$opt" = 'reset recent games list' && sed 's/./0/g' "$SPIDYOSCONFDIR"/games_recent.cache > "$SPIDYOSCONFDIR"/games_recent.cache && aplay "$SFXDIR"/pick.wav exit
+test "$opt" = 'rename a game' && dmenu_gamerename && exit
+test "$opt" = 'reset scumm list' && (rm .config/spidyos/scummls.cache && aplay "$SFXDIR"/next.wav) && exit
+test "$opt" = 'OpenMSX Panasonic FS-A1GT' && (aplay "$SFXDIR"/pick.wav & openmsxfullscreen && openmsx -machine Panasonic_FS-A1GT) && exit
+test "$opt" = 'OpenMSX C-Bios' && (aplay "$SFXDIR"/pick.wav & openmsx) && exit
+test "$opt" = 'OpenMSX Metal Gear 2 script' && (aplay "$SFXDIR"/pick.wav & openmsxfullscreen && openmsx -machine Panasonic_FS-A1GT -cart ~/rom/msx/Metal-Gear-2-Solid-Snake_MSX_EN.rom -ips ~/roms/msx/MG2_TF.IPS) && exit
+test "$opt" = 'EasyRPG Menu' && (aplay "$SFXDIR"/pick.wav & easyrpg-player --project-path ~/rom/rpg --fullscreen) && exit
+test "$opt" = 'ScummVM Menu' && (aplay "$SFXDIR"/pick.wav & scummvm) && exit

@@ -1,0 +1,3 @@
+#!/bin/sh
+aplay "$SYSSFX"/byebye.wav &
+sleep 0.2 && xset dpms force off

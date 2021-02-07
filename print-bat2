@@ -1,0 +1,4 @@
+#!/bin/sh
+bat="$(cat /sys/class/power_supply/BAT0/capacity)"
+echo "$bat"
+[ "$bat" -le '30' ] && [ "$(cat /sys/class/power_supply/BAT0/status)" != 'Charging' ] && aplay "$SFXDIR"/batw.wav
