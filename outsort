@@ -1,0 +1,205 @@
+#!/bin/sh
+
+# outsort, originated by spidyjuice
+
+# outsort is a tool meant to aid cleaning up dirty downloads folders!
+# by default, it will never overwrite the files it tries to move.
+# it operates mostly in dmenu and specified file previewers, but you
+# should probably run it form the command line so you can see and
+# interact with the output if need be.
+
+#TODO LIST:
+#automatic file renaming in case of overwrite
+#auto source code unpacker
+#semi-automated configurable music and rom sorting
+#advanced package/sourcecode filing support
+
+# CONFIGURATION  ----------------------------------------------------------------------------------
+
+#image viewer
+img_viewer=feh
+
+#video viewer
+vid_viewer=mpv
+
+#move command to use
+mvcmd='mv -vi'
+
+#default directory to work, presumably the downloads folder. Mine is called 'out'
+[ -z "$*" ] && working_dir="${HOME}/out" || working_dir="$*"
+
+#directory for trash
+trash="${HOME}/out/.trash"
+
+#directory for unloading source code
+src_code_dir='/home/storage/src'
+
+#directory for storing miscellaneous packages
+pkg_dir='/home/storage/packages'
+
+#directory for storing notes
+notes_dir="${HOME}/notes"
+
+
+#directory of media
+media_dir='/home/media'		#this variable is not actually used by the code, it's simply here to aid definition of the following variables
+
+#directory for storing audiobooks
+audiobooks_dir="$media_dir"'/audiobooks'
+
+#directory for storing books
+books_dir="$media_dir"'/books'
+
+#directory for storing playlists
+playlists_dir="$media_dir"'/playlists'
+
+#directory for storing torrents
+torrents_dir="$media_dir"'/torrents'
+
+#directory for storing videos
+videos_dir="$media_dir"'/videos'
+
+
+#directory for storing music
+music_dir="$media_dir"'/music'
+
+#music tree style
+music_tree='/artist/album'	#unimplemented variable
+
+#directory for storing roms
+roms_dir="$media_dir"'/roms'
+
+roms_tree='/machine/rom'	#unimplemented variable
+
+
+
+#spidos gallery index variables
+galleries_index="$(cat ~/.config/spidyos/galleries | sed 's/#.*//g' | sed 's/	/ /g')"
+while [ -n "$(echo "$galleries_index")" ] ; do
+line="$(echo "$galleries_index" | head -n 1)"
+[ -n "$line" ] && galleries="$(echo "$galleries" ; echo "$line")"
+galleries_index="$(echo "$galleries_index" | tail -n +2)"
+done
+galleries="$(echo "$galleries" | tail -n +2)"	#cuts off the first empty line caused by the nature of the above while loop
+
+
+
+# CODE ----------------------------------------------------------------------------------
+
+#outsort dmenu location options
+where_opts='trash
+later
+skip
+notes
+
+'"$galleries"'
+
+src/source
+pkg/packages
+
+audiobooks
+books
+playlists
+torrents
+videos
+
+music
+roms'
+
+#number of items remaining
+remaining="$(ls "$working_dir" | wc -l)"
+
+
+sort() {
+aplay -q "$SFX"/next.wav &
+item="$(ls "$working_dir" | head -n 1)"
+mimetype="$(file --mime-type -b "$working_dir"/"$item")"
+[ -n "$( echo "$mimetype" | grep 'image')" ] && "$img_viewer" "$working_dir"/"$item"
+[ -n "$( echo "$mimetype" | grep 'video')" ] && "$vid_viewer" "$working_dir"/"$item"
+
+opt="$(
+	(echo "$remaining remaining..."
+	 echo 'select how this item should be handled: (appropriate files will be previewed, press escape to quit outsort)'
+	 echo '-----------------------------------------------------------------------------------------------------------'
+	 echo "$item"
+	 echo '-----------------------------------------------------------------------------------------------------------'
+	 echo "$where_opts"
+	) | dmenu -l 45 -bw 3 -c -p 'outsort')"
+
+export gallery_move="$(echo "$galleries" | grep "$opt" | awk '{print $2}')"
+
+# CASES ------------------
+
+if  [ -z "$opt" ] ; then
+aplay -q "$SFX"/cancel.wav &
+$mvcmd -t "$working_dir" "$working_dir"/.skip/*
+exit
+
+elif [ "$opt" == 'trash' ] ; then
+	$mvcmd -t "$trash" "$working_dir"/"$item" 
+
+elif [ "$opt" == 'later' ] ; then
+	$mvcmd -t "$working_dir"/'.later' "$working_dir"/"$item" 
+
+elif [ "$opt" == 'skip' ] ; then
+	$mvcmd -t "$working_dir"/'.skip' "$working_dir"/"$item" 
+
+elif [ -n "$gallery_move" ] ; then
+ 	$mvcmd -t "$GAL"/"$gallery_move" "$working_dir"/"$item" 
+
+elif [ "$opt" == 'notes' ] ; then
+ 	$mvcmd -t "$notes_dir" "$working_dir"/"$item" 
+
+elif [ "$opt" == 'src/source' ] ; then
+ 	$mvcmd -t "$src_code_dir" "$working_dir"/"$item" 
+
+elif [ "$opt" == 'pkg/packages' ] ; then
+ 	$mvcmd -t "$pkg_dir" "$working_dir"'/'"$item" 
+
+# dump media =============
+
+elif [ "$opt" == 'audiobooks' ] ; then
+	$mvcmd -t "$audiobooks_dir" "$working_dir"'/'"$item" 
+
+elif [ "$opt" == 'books' ] ; then
+	$mvcmd -t "$books_dir" "$working_dir"'/'"$item" 
+
+elif [ "$opt" == 'playlists' ] ; then
+	$mvcmd -t "$playlists_dir" "$working_dir"'/'"$item" 
+
+elif [ "$opt" == 'torrents' ] ; then
+	$mvcmd -t "$torrents_dir" "$working_dir"'/'"$item" 
+
+elif [ "$opt" == 'videos' ] ; then
+	$mvcmd -t "$videos_dir" "$working_dir"'/'"$item" 
+
+# advanced sorting ========
+
+elif [ "$opt" == 'roms' ] ; then
+	#temporary solution
+	$mvcmd -t "$working_dir"'/.later/' "$working_dir"'/'"$item" 
+
+elif [ "$opt" == 'music' ] ; then
+	#temporary solution
+	$mvcmd -t "$working_dir"'/.later/' "$Source_dir"'/'"$item" 
+	#plan: for every lowest directory heirarchy, name the album and artist, then move it to the music folder in the format specified by $music_tree
+
+
+
+else
+return sort
+fi
+
+remaining="$(( "$remaining"-1 ))"
+[ "$remaining" -gt '0' ] && sort
+}
+
+
+[ -d "$working_dir"'/.later' ] || mkdir "$working_dir"'/.later'
+[ -d "$working_dir"'/.trash' ] || mkdir "$trash"
+[ -d "$working_dir"'/.skip' ] || mkdir "$working_dir"'/.skip'
+aplay -q "$SFX"/in.wav &
+sort
+$mvcmd -t "$working_dir" "$working_dir"/.skip/* 
+$mvcmd -t "$working_dir" "$working_dir"/.later/* 
+aplay -q "$SFX"/done.wav
