@@ -8,7 +8,7 @@ OpenMSX Metal Gear 2 script
 EasyRPG Menu
 ScummVM Menu' | dmenu -c -bw 3 -i -l 39 -p 'Game Utilities:' || aplay "$SFXDIR"/cancel.wav)"
 test "$opt" = 'reset recent games list' && sed 's/./0/g' "$SPIDYOSCONFDIR"/games_recent.cache > "$SPIDYOSCONFDIR"/games_recent.cache && aplay "$SFXDIR"/pick.wav exit
-test "$opt" = 'rename a game' && dmenu_gamerename && exit
+test "$opt" = 'rename a game' && gamrename-redux exit
 test "$opt" = 'reset scumm list' && (rm .config/spidyos/scummls.cache && aplay "$SFXDIR"/next.wav) && exit
 test "$opt" = 'OpenMSX Panasonic FS-A1GT' && (aplay "$SFXDIR"/pick.wav & openmsxfullscreen && openmsx -machine Panasonic_FS-A1GT) && exit
 test "$opt" = 'OpenMSX C-Bios' && (aplay "$SFXDIR"/pick.wav & openmsx) && exit

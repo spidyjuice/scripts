@@ -1,0 +1,203 @@
+#!/bin/sh
+version=2.0
+
+# gamerename-redux, originated by spidyjuice!
+# this is a tool for renaming games and simultaneously
+# their save data(s). I rewrote this completely
+# from my dmenu_gamerename script, because I wanted
+# it to be more adaptable. How it works:
+# usage: gamerename-redux [rom path] [save path]
+# or else, rom path and save path will default to
+# what they are set to in the configuration section
+# below. [rom path] can be a game, or it can be a
+# directory containing games, in which case a
+# dmenu prompt will ask you to locate the desired
+# game further down the folder tree. Once you locate
+# the game, the directories you navigated will be
+# reflected in the save path, and renaming the
+# game will also rename all save files of the same
+# name (not counting their file extensions).
+# Also, you can specify [rom path] as an argument
+# without specifying [save path], and it will
+# use the default save path.
+
+rom_path="$1"
+sav_path="$2"
+
+# CONFIGURATION  -------------------------------------------------------------------------------
+
+[ -z "$rom_path" ] && rom_path=/home/media/roms
+[ -z "$sav_path" ] && sav_path=/home/storage/saves
+
+dmenumod="-c -bw 3"
+
+#consider selections within these specified directories games in and of themselves, instead of navigatable directories
+dir_exceptions='games scumm rpg'
+
+# CODE -----------------------------------------------------------------------------------------
+
+
+#check for directory exceptions in $path
+dir_check() {
+
+path="$*"
+check_list="$dir_exceptions"
+exception=''
+path_is_rom=''
+
+#check for directory exceptions
+while  [ -n "$check_list" ] ; do
+  line="$(echo "$check_list" | head -n 1)"
+  [ "$(echo "$path" | grep -x -q '.*'"$line"'..*' ; echo "$?")" == '0' ] && exception=1 && path_is_rom=true && return
+  check_list="$(echo "$check_list" | tail -n +2)"
+done
+
+#if path is not confirmed rom, and path is a file, path is a rom.
+[ -f "$rom_path""$sub_dir""$opt" ] && path_is_rom=true && return
+#else path is not a rom.
+path_is_rom=false
+return
+}
+
+
+#filesystem browse prompt
+fs_prompt() {
+opt="$(ls "$rom_path""$sub_dir" | dmenu $dmenumod -i -l 25 -p 'select rom')"
+
+#esc to exit
+if [ -z "$opt" ] ; then
+aplay -q "$SFX"/cancel.wav &
+exit
+fi
+opt='/'"$opt"
+
+#if opt is not a rom (and is instead presumably a directory), nest and repeat the prompt. Else, proceed.
+opt_is_rom=''
+dir_check "$rom_path""$sub_dir""$opt"
+opt_is_rom="$path_is_rom"
+echo 'opt is a rom: '"$opt_is_rom"
+if [ "$opt_is_rom" != true ] ; then
+  sub_dir="$sub_dir""$opt"
+  aplay -q "$SFX"/next.wav &
+  fs_prompt
+elif [ "$opt_is_rom" == true ] ; then
+  aplay -q "$SFX"/prompt.wav &
+  rom_sel="$rom_path""$sub_dir""$opt"
+  sav_sel="$sav_path""$sub_dir""$opt" 
+  rename_prompt
+fi
+}
+
+
+#rename the selected file
+rename_prompt(){
+opt="$(echo "$opt" | sed 's/\///g')"
+
+#in this if statement, determine file extensions and rom/save file names
+if [ "$exception" == 1 ] ; then
+game_name="$(echo "$opt" | sed 's/\..*$//g')"
+else
+game_name="$(echo "$opt" | sed 's/\..*$//g')"
+game_ext="$(echo "$opt" | sed 's/^.*\././g')"
+#expand the save selection to all items matching the rom name in the sav dir
+sav_sel="$(ls -d "$sav_path""$sub_dir"/* | grep "$game_name")"
+#ninid is a script at 'https://github.com/spidyjuice/scripts' that extracts rom titles and IDs
+ninid_output="$(ninid "$rom_sel")"
+[ "$(echo "$ninid_output" | grep -qi 'unknown file extension' ; echo "$?")" -eq 0 ] && ninid_output=''
+nid="$(echo "$ninid_output" | sed -n '1p' | tr -cd "[:print:]")"
+ntit="$(echo "$ninid_output" | sed -n '2p' | tr -cd "[:print:]")"
+fi
+
+echo 'calculating checksum...'
+checksum="$(cksum "$rom_sel" | awk {'print $1'})"
+echo 'done'
+
+echo 'printing reciept...'
+echo '-------------------------------------------------------------------------------------------'
+echo 'selected game: '"$rom_sel"
+echo 'selected saves: '"$sav_sel"
+echo 'game name: '"$game_name"
+echo 'game ext: '"$game_ext"
+echo 'nintendo id: '"$nid"
+echo 'nintendo title: '"$ntit"
+echo 'checksum: '"$checksum"
+echo '-------------------------------------------------------------------------------------------'
+
+if [ -n "$ninid_output" ] ; then
+[ -n "$nid" ] && nid="$(echo "$nid ")"
+[ -n "$ntit" ] && ntit="$(echo "$ntit ")"
+sugnew="$(echo "$ntit($nid$checksum)" ; echo "$title ($nid$checksum)")"
+else
+sugnew="$(echo "$game_name")"
+fi
+
+
+#prompt name
+new_name="$( (
+#echo '-- [ suggestions: ] ---------------------------------------------------------'
+echo "$sugnew"
+echo '-- old name: -------------------------------------------------------'
+echo "$game_name"
+echo '-- info: -----------------------------------------------------------'
+echo "$nid" ; echo "$ntit" ; echo "$checksum") | dmenu $dmenumod -l 39 -p 'new name:')"
+if [ -z "$new_name" ] ; then
+  aplay -q "$SFXDIR"/cancel.wav &
+  exit
+fi
+aplay -q "$SFXDIR"/pick.wav &
+
+echo 'new name: '"$new_name"
+echo '-------------------------------------------------------------------------------------------'
+echo 'moving files...'
+#rom file handling
+mv "$rom_sel" "$(echo "$rom_sel" | sed 's/'"$game_name""$game_ext"'$/'"$new_name""$game_ext"'/g')"
+
+#multiple save file handling
+sav_name="$( echo "$(echo "$sav_sel" | head -n 1)" | sed 's/^.*\///g' | sed 's/\..*//g')"
+#echo 'save name is: '"$sav_name"
+while [ -n "$sav_sel" ] ; do
+  line="$(echo "$sav_sel" | head -n 1)"
+  line_ext="$(echo "$line" | sed 's/^.*\././g')"
+#  echo 'the ext of this line is: '"$line_ext"
+  mv "$line" "$(echo "$line" | sed 's/'"$sav_name""$line_ext"'$/'"$new_name""$line_ext"'/g')"
+  sav_sel="$(echo "$sav_sel" | tail -n +2)"
+done
+
+echo 'done!'
+echo '-------------------------------------------------------------------------------------------'
+
+#refresh variables just in case
+sub_dir=''
+sugnew=''
+new_name=''
+game_name=''
+game_ext=''
+nid=''
+ntit=''
+#if rom_path is a directory, call the menu up all over again~
+[ "$rom_path_is_a_rom" != true ] && start
+
+}
+
+
+#begin prompt tree
+start() {
+aplay -q "$SFX"/in.wav &
+if [ "$rom_path_is_a_rom" == true ] ; then
+  rom_sel="$rom_path"
+  sav_sel="$sav_path"
+  rename_prompt
+else
+  fs_prompt
+fi
+}
+
+
+dir_exceptions="$(echo "$dir_exceptions" | sed 's/ /\n/g')"
+dir_check "$rom_path"
+rom_path_is_a_rom="$path_is_rom"
+# I wasn't considerate enough to implement this switch better, sorry
+[ "$rom_path_is_a_rom" == true ] && opt="$(echo "$rom_path" | sed 's/^.*\///g')"
+echo 'rom path is a rom is: '"$rom_path_is_a_rom"
+echo 'opt is: '"$opt"
+start
