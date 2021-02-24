@@ -1,0 +1,20 @@
+#!/bin/sh
+# performs a du command on the home
+# directory with concise and clean
+# results. Useful for spring cleaning!
+
+homefolders="$(ls -d "${HOME}"/*)"
+homefolders="$(echo "$homefolders" ; echo "${HOME}"'/.config' ; echo "${HOME}"'/.mail' ; echo "${HOME}"'/.spi-de' ; echo "${HOME}")"
+homefolders="$(echo "$homefolders" | sed 's/\./\\\./g' | sed 's/^/\.\*/g')"
+echo 'checking...'
+duresults="$(du -h "${HOME}")"
+echo 'done:'
+echo '----------------------------------'
+#echo "$duresults" | grep -x $homefolders
+
+while [ -n "$homefolders" ] ; do
+line="$(echo "$homefolders" | head -n 1)"
+echo "$duresults" | grep -x -e "$line"
+homefolders="$(echo "$homefolders" | tail -n +2)"
+done
+echo '----------------------------------'
