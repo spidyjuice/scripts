@@ -150,7 +150,7 @@ echo 'new name: '"$new_name"
 echo '-------------------------------------------------------------------------------------------'
 echo 'moving files...'
 #rom file handling
-mv "$rom_sel" "$(echo "$rom_sel" | sed 's/'"$game_name""$game_ext"'$/'"$new_name""$game_ext"'/g')"
+mv -v "$rom_sel" "$(echo "$rom_sel" | sed 's/'"$game_name""$game_ext"'$/'"$new_name""$game_ext"'/g')"
 
 #multiple save file handling
 sav_name="$( echo "$(echo "$sav_sel" | head -n 1)" | sed 's/^.*\///g' | sed 's/\..*//g')"
@@ -159,7 +159,7 @@ while [ -n "$sav_sel" ] ; do
   line="$(echo "$sav_sel" | head -n 1)"
   line_ext="$(echo "$line" | sed 's/^.*\././g')"
 #  echo 'the ext of this line is: '"$line_ext"
-  mv "$line" "$(echo "$line" | sed 's/'"$sav_name""$line_ext"'$/'"$new_name""$line_ext"'/g')"
+  mv -v "$line" "$(echo "$line" | sed 's/'"$sav_name""$line_ext"'$/'"$new_name""$line_ext"'/g')"
   sav_sel="$(echo "$sav_sel" | tail -n +2)"
 done
 
@@ -182,7 +182,6 @@ ntit=''
 
 #begin prompt tree
 start() {
-aplay -q "$SFX"/in.wav &
 if [ "$rom_path_is_a_rom" == true ] ; then
   rom_sel="$rom_path"
   sav_sel="$sav_path"
@@ -193,6 +192,7 @@ fi
 }
 
 
+aplay -q "$SFX"/in.wav &
 dir_exceptions="$(echo "$dir_exceptions" | sed 's/ /\n/g')"
 dir_check "$rom_path"
 rom_path_is_a_rom="$path_is_rom"
