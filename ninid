@@ -1,27 +1,110 @@
 #!/bin/sh
-version=1.0.1
-rom=$1
-[ -z "$rom" ] && echo 'Usage: ninid [ROM FILE]' && exit
+version=1.1
+
+# NEW!: option -i, prints full header/info
+# NEW!: revised gb-nds header reading
+# NEW!: supports n64, gcn, wii wbfs, wii iso, and wii wads! (iso is untested but it probably works)
+
+rom="$*"
+[ -n "$(echo "$rom" | grep '^-i')" ] && print_info=1 && rom="$(echo "$rom" | sed 's/-i //g')"
+
 findinfo () {
-info="$(dd status=none bs=1 skip="$start" count="$stop" if="$rom" | tr '\0' '\1')"
+info="$(dd status=none bs=1 skip="$heads" count="$heade" if="$rom" | tr '\0' '\1')"
 #echo "$info"
-title="$(echo "$info" | head -c -"$tail")"
-id="$(echo "$info" | tail -c "$tail")"
-#checksum="$(cksum "$rom" | awk {'print $1'})"
-#output="$checksum"
-[ "$format" -ge '2' ] && output="$id"
-[ "$format" -eq '1' -o "$format" -eq '3' ] && output="$( echo "$output" ; echo "$title")"
-echo "$output"
+
+title="$(echo "$info" | head -c "$tite" | tail -c +"$tits" | tr -cd "[:print:]")"
+id="$(echo "$info" | head -c "$ide" | tail -c +"$ids" | tr -cd "[:print:]")"
+
+[ -n "$print_info" ] && echo "$info" && echo '--------------'
+echo "$id"
+echo "$title"
 }
 
-#roms with IDs in the gba-wii format
-echo "$rom" | grep -q '.gba' && [ "$?" -eq "0" ] && (format=3 ; start=160 ; stop=18 ; tail=7 ; findinfo) && exit
-echo "$rom" | grep -q '.nds' && [ "$?" -eq "0" ] && (format=3 ; start=0 ; stop=18 ; tail=7 ; findinfo) && exit
 
-#gbc games have titles and IDs in an old sort of format
-echo "$rom" | grep -q '.gbc' && [ "$?" -eq "0" ] && (format=3 ; start=308 ; stop=15 ; tail=5 ; findinfo) && exit
+if [ -z "$rom" ] ; then 
+[ -z "$rom" ] && echo 'Usage: ninid [-i] [ROM FILE]' && exit
+
+#I absolutely cannot find examples of snes or nes games with internal titles or ids or revision numbers or anything.
 
 #gb games have titles but not internal IDs
-echo "$rom" | grep -q '.gb' && [ "$?" -eq "0" ] && (format=1 ; start=308 ; stop=23 ; tail=0 ; findinfo) && exit
+#this is the earliest form of nintendo rom self-identifying I know of. It's also very simple, only representing a title and revision number. Often the revision number isn't even marked. I'm not even sure if there are gameboy games with multiple revisions!
+elif [ "$(echo "$rom" | grep -q '.gb' ; echo "$?")" -eq "0" ] ; then
+   heads=308 ; heade=20 ;tits=0 ; tite=16 ; ids=17 ; ide=20 ; findinfo && exit
+# most games:	N=title, R=revision #
+# 00000134  NNNN NNNN NNNN NNNN RRRR ---- ----
+# I can't find any exceptions to this
 
-echo 'unknown file extension, ninid is for use with Gameboy and DS games. NES/SNES games do not have internal IDs or titles, just use cksum [FILE] if all you need is a CRC. For Gamecube and Wii games use other tools. This script currently does not handle those.'
+
+# n64
+#Much bigger than the gameboy's header. This is also where the long tradition of 4 character software IDs starts.
+elif [ "$(echo "$rom" | grep -q '.n64' ; echo "$?")" -eq "0" ] ; then
+   heads=24 ; heade=40 ;tits=0 ; tite=34 ; ids=35 ; ide=40 ; findinfo && exit
+# most games:	N=title, I=id
+# 00000020  NNNN NNNN NNNN NNNN
+# 00000030  NNNN NNNN NNNI III-
+
+
+# gbc
+#very similar to the gameboy rom header, same amount of bytes in the same position- but with some of those bytes now dedicated to an ID and sometimes a revision number.
+elif [ "$(echo "$rom" | grep -q '.gbc' ; echo "$?")" -eq "0" ] ; then
+   heads=308 ; heade=20 ;tits=0 ; tite=11 ; ids=12 ; ide=20 ; findinfo && exit
+# most games:	N=title, I=id, R=revision, .=???
+# 00000134  NNNN NNNN NNNI III. RRRR ---- ----
+# the only exception to this format I've encountered is wario land 2:
+# NNNN NNNN NNNN N... RRRR
+
+
+# gba
+#similar again to gbc
+elif [ "$(echo "$rom" | grep -q '.gba' ; echo "$?")" -eq "0" ] ; then
+   heads=160 ; heade=18 ;tits=0 ; tite=12 ; ids=13 ; ide=18 ; findinfo && exit
+# most games:	N=title, I=id, R=revision
+# 0000008C  ---- ---- ---- ---- ---- NNNN NNNN
+# 000000A8  NNNN IIII RR-- ---- ---- ---- ----
+
+
+# gamecube	works!
+#new gc support!
+elif [ "$(file --mime-type -b "$rom" | grep -q '.*gamecube-rom' ; echo "$?")" -eq "0" ] ; then
+   heads=0 ; heade=1024 ;tits=33 ; tite=1024 ; ids=0 ; ide=6 ; findinfo && exit
+# most games:	N=title, I=id, R=revision #
+# 00000000  IIII RR-- ---- ----
+# 00000010  ---- ---- ---- A3Y=
+# 00000020  NNNN NNNN NNNN NNNN
+# 00000030  NNNN NNNN NNNN NNNN
+# 00000040  NNNN NNNN NNNN N...
+
+
+# nds	check!
+#method is almost identitcal to gba, but the header begins sooner
+elif [ "$(echo "$rom" | grep -q '.nds' ; echo "$?")" -eq "0" ] ; then
+   heads=0 ; heade=18 ;tits=0 ; tite=12 ; ids=13 ; ide=18 ; findinfo && exit
+
+
+# wii wbfs
+#very similar to gamecube, but at a different starting point.
+elif [ "$(echo "$rom" | grep -q '.wbfs' ; echo "$?")" -eq "0" ] ; then
+   heads=512 ; heade=124 ;tits=29 ; tite=124 ; ids=0 ; ide=6 ; findinfo && exit
+
+# wii iso
+elif [ "$(file --mime-type -b "$rom" | grep -q '.*wii-rom' ; echo "$?")" -eq "0" ] ; then
+   heads=0 ; heade=124 ;tits=29 ; tite=124 ; ids=0 ; ide=6 ; findinfo && exit
+# wii roms:
+# most games:	N=title, I=id, R=revision #
+# 00000200  IIII RR-- ---- ----
+# 00000210  ---- ---- ].zE ----
+# 00000220  NNNN NNNN NNNN NNNN
+# 00000230  NNNN NNNN NNNN N...
+# go for as many bytes as you can until you hit 'MD5', sed out 'MD5.*'
+
+
+# wii wad
+#contains almost no information about itself besides its 4 character ID
+elif [ "$(echo "$rom" | grep -q '.wad' ; echo "$?")" -eq "0" ] ; then
+   heads=3104 ; heade=4 ;tits=0 ; tite=0 ; ids=0 ; ide=4 ; findinfo && exit
+#start 3105
+# most wads:	I=id
+# 00000C20  IIII ---- ---- ----
+else
+echo 'unknown file type, ninid is for use with Gameboy (Original/Color/Advance), N64, Gamecube, Wii (wbfs/iso/wad) and DS games. NES/SNES games do not have internal IDs or titles.'
+fi

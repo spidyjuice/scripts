@@ -5,7 +5,8 @@ A list of scripts with a variety of usecases ranging from handling common deskto
 A minorly interactive script for installing arch linux locally from an arch linux environment, with the help of a config file (which it can generate). It has kinks and needs a revision... but it *does* work!!
 
 ### ninid
-grabs the internal title and ID (if applicable) of a GB/GBC/GBA/NDS game rom, and prints it.
+grabs the internal title and ID (if applicable) of a GB/GBC/GBA/NDS/N64/GCN/Wii game rom, and prints it.
+(newly updated!)
 
 ### update-mirrorlist
 with the help of rankmirrors from the pacman-contrib package, grabs the latest local pacman mirror list, then ranks them from best to worst connection.
