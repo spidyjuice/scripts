@@ -1,6 +1,5 @@
 #!/bin/sh
-[ -z "$GAL" ] && GAL='/home/storage/gallery'
-[ -z "$GALsr" ] && GALsr="$GAL"'/snaps_roll'
+snapshot_dir="$GALsr"
 
-snap="$(ls -r "$GALsr" | grep 12021 | head -n 1)"
-feh /home/storage/gallery/snaps_roll/$snap
+snap="$(ls -r "$snapshot_dir" | grep 12021 | head -n 1)"
+feh "$snapshot_dir"/$snap
