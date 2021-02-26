@@ -3,11 +3,13 @@ aplay "$SFXDIR"/in.wav &
 opt="$(echo 'mount
 network
 monitors
+outsort
 wallpaper
 bar' | dmenu -bw 3 -i -c -l 10 -p 'Tools:')"
 [ -z "$opt" ] &&  aplay -q "$SFXDIR"/cancel.wav && exit
 aplay -q "$SFXDIR"/pick.wav &
 test "$opt" = 'mount' && dmenu_mount
+test "$opt" = 'outsort' && dmenu_outsort
 test "$opt" = 'network' && st -n tag7 -e nmtui
 test "$opt" = 'monitors' && notify-send 'this script hasnt been written yet'
 test "$opt" = 'wallpaper' && nitrogen ~/.config/wall

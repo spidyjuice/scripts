@@ -1,8 +1,10 @@
 #!/bin/sh
 url="$*"
 [ -z "$url" ] && url=www.archlinux.org
-while [ "$(ping -a -c 1 "$url" ; echo "$?")" -ne 0 ]
+
+
+while [ "$(ping -a -c 1 -W 9999 "$url" ; echo "$?")" -ne 0 ]
 do echo 'retrying ping'
 done
-aplay -q "$SYSSFX"/win.wav
+aplay -q "$SFX"/process_complete.wav
 echo 'connection established!'

@@ -4,5 +4,5 @@ time="$*"
 echo "starting timer, sleeping for $time seconds"
 sleep "$time"
 while [ -z i ]
-do aplay "$SYSSFX"/win.wav
+do aplay "$SYSSFX"/process_complete.wav
 done
